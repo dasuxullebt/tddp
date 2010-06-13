@@ -32,6 +32,9 @@
 #include <stdio.h>
 #include <errno.h>
 
+/* For crc32 */
+#include <zlib.h>
+
 /* BLOCKSIZE NEEDS TO BE <4096 IN BLOCKDB.H - CHECK IF CHANGED */
 #define BLOCKSIZE 512
 #define CHECKSUMSIZE 2

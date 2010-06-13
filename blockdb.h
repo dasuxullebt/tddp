@@ -36,22 +36,27 @@ void init_block_db () {
   }
 }
 
-off64_t add_block (const char * blk) {
+offset_n_chksum add_block (const char * blk) {
   int i, j, k, c;
-  uint16_t chksum = checksum(blk);
-  entry ent = entries[chksum];
+  uint32_t chksum = checksum(blk);
+  uint16_t chksum_h = cks_h(chksum);
+  uint16_t chksum_l = cks_l(chksum);
+  entry ent = entries[chksum_l];
   for (j = 0; j < ent.number; j++) {
-    off64_t elt = ent.array[j];
-    char mapped[BLOCKSIZE];
-    lseek64 (blockdb_fd, elt, SEEK_SET);
-    for (k = 0; k < BLOCKSIZE;) {
-      k += (c = read(blockdb_fd, mapped + k, BLOCKSIZE - k));
-      if (c <= 0) {
-	fprintf(stderr,
-		"Error in add_block: read(2) returned %d. Exiting.\n", c);
-	_exit(-1);}}
-    if (memcmp (blk, mapped, BLOCKSIZE) == 0) {
-      return elt;}}
+    offset_n_chksum elt = ent.array[j];
+    if (elt.rest_of_checksum == chksum_h) {
+      char mapped[BLOCKSIZE];
+      lseek64 (blockdb_fd, elt.offset, SEEK_SET);
+      for (k = 0; k < BLOCKSIZE;) {
+	k += (c = read(blockdb_fd, mapped + k, BLOCKSIZE - k));
+	if (c <= 0) {
+	  fprintf(stderr,
+		  "Error in add_block: read(2) returned %d. Exiting.\n", c);
+	  _exit(-1);}}
+      if (memcmp (blk, mapped, BLOCKSIZE) == 0) {
+	return elt;}
+    }
+  }
   /* no deduplication possible, allocate new block */
   off64_t ret = lseek64 (blockdb_fd, (off64_t) 0, SEEK_END);
   if (ret < 0) {
@@ -65,7 +70,10 @@ off64_t add_block (const char * blk) {
       fprintf(stderr, "Error in add_block: write(2) returned %d. Exiting.\n",
 	      c); _exit(-1);}}
   add_checksum(chksum, ret);
-  return ret;
+  offset_n_chksum bla;
+  bla.offset = ret;
+  bla.rest_of_checksum = chksum_h;
+  return bla;
 }
 
 #endif

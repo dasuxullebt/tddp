@@ -22,9 +22,14 @@
 #include "common.h"
 
 typedef struct {
+  off64_t offset;
+  uint16_t rest_of_checksum;
+} offset_n_chksum;
+
+typedef struct {
   uint32_t number; /* how much ones are saved */
   uint32_t allocated; /* how much ones are allocated */
-  off64_t* array;
+  offset_n_chksum* array;
 } entry;
 
 entry entries[256*256];
@@ -35,9 +40,9 @@ void init_empty_chksum_db () {
 void realloc_entry(uint16_t checksum) {
   if (entries[checksum].allocated == 0) entries[checksum].array = NULL;
   entries[checksum].allocated += 512;
-  off64_t* newarray = (off64_t*)
+  offset_n_chksum* newarray = (offset_n_chksum*)
     realloc(entries[checksum].array,
-	    entries[checksum].allocated * sizeof(off64_t));
+	    entries[checksum].allocated * sizeof(offset_n_chksum));
   if (newarray == NULL) {
     fprintf
       (stderr, "Error in realloc_entry: realloc returned NULL. Exiting.\n");
@@ -45,9 +50,16 @@ void realloc_entry(uint16_t checksum) {
   entries[checksum].array = newarray;
 }
 
-void add_checksum(uint16_t checksum, off64_t offset) {
+inline uint16_t cks_l (uint32_t c) { return c % (256*256); }
+inline uint16_t cks_h (uint32_t c) { return cks_l(c >> 16); }
+
+void add_checksum(uint32_t c, off64_t offset) {
+  uint16_t checksum = cks_l(c);
   if (entries[checksum].number < entries[checksum].allocated) {
-    entries[checksum].array[entries[checksum].number++] = offset;
+    offset_n_chksum o;
+    o.offset = offset;
+    o.rest_of_checksum = cks_h(c);
+    entries[checksum].array[entries[checksum].number++] = o;
   } else {
     realloc_entry(checksum);
     add_checksum(checksum, offset);
@@ -61,8 +73,8 @@ typedef struct {
 } fileformat;
 
 void dump_to_file (int fd) {
-  /* file format: uint16_t checksum, uint32_t number, off64_t[number] entries,
-     ... */
+  /* file format: uint16_t checksum, uint32_t number,
+     offset_n_chksum[number] entries, ... */
   int i,k,c;
   lseek64(fd, (off64_t) 0, SEEK_SET);
   for (i = 0; i < 256*256; i++) {
@@ -71,12 +83,12 @@ void dump_to_file (int fd) {
     ff.checksum = (uint16_t) i;
     ff.number = entries[i].number;
     if (ff.number == 0) continue;
-    off64_t* myarray = entries[i].array;
+    offset_n_chksum* myarray = entries[i].array;
     char writebuf[sizeof(fileformat)+
-		  sizeof(off64_t)*ff.number];
+		  sizeof(offset_n_chksum)*ff.number];
     char* wb = writebuf;
     memcpy(wb, &ff, sizeof(fileformat)); wb+=sizeof(fileformat);
-    memcpy(wb, myarray, ff.number*sizeof(off64_t));
+    memcpy(wb, myarray, ff.number*sizeof(offset_n_chksum));
     for (k = 0; k < sizeof(writebuf);) {
       k += (c = write(fd, writebuf + k, sizeof(writebuf) - k));
       if (c == 0) {
@@ -104,16 +116,16 @@ void load_from_file (int fd) {
       _exit(-1);}
   }
   /* CHAR !!! */
-  char* newarray = (char*) malloc (ff.number*sizeof(off64_t));
+  char* newarray = (char*) malloc (ff.number*sizeof(offset_n_chksum));
   for (i = 0; i < ff.number;) {
-    i += (c = read(fd, newarray + i, ff.number*sizeof(off64_t) - i));
+    i += (c = read(fd, newarray + i, ff.number*sizeof(offset_n_chksum) - i));
     if (c <= 0) {
       fprintf(stderr,
 	      "Error in load_from_file: read returned %d. Exiting.\n", c);
       _exit(-1);} 
   }
   entries[ff.checksum].number = entries[ff.checksum].allocated = ff.number;
-  entries[ff.checksum].array = (off64_t*) newarray;
+  entries[ff.checksum].array = (offset_n_chksum*) newarray;
   goto readon;
 }
 

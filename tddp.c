@@ -69,9 +69,9 @@ int main (int argc, char* argv[]) {
 	_exit(-1);
       }
     }
-    off64_t myblk = add_block(buf);
+    offset_n_chksum myblk = add_block(buf);
     for (k = 0; k < sizeof(off64_t);) {
-      k += (c = write(ctape, &myblk + k, sizeof(off64_t) - k));
+      k += (c = write(ctape, &(myblk.offset) + k, sizeof(off64_t) - k));
       if (c < 0) {
 	fprintf(stderr, "Could not write ctape: %d\n", c);
 	_exit(-1);

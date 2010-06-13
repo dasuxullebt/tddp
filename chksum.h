@@ -23,7 +23,7 @@
 
 /* Define the checksum (16-bit) for the blocks (512 byte) */
 
-uint16_t checksum(const char* blk) {
+uint16_t checksum__(const char* blk) {
   /* for now, just sum the bytes up */
   uint16_t ret = 0;
   const char* ptr = blk;
@@ -32,6 +32,12 @@ uint16_t checksum(const char* blk) {
     ret = (ret + *ptr) % (256*256);
   }
   return ret;
+}
+
+uint32_t checksum(const char* blk) {
+  uLong ret = crc32(0L, Z_NULL, 0);
+  ret = crc32(ret, blk, BLOCKSIZE);
+  return (uint32_t) ret;
 }
 
 #endif
