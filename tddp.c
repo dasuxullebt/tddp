@@ -63,7 +63,7 @@ int main (int argc, char* argv[]) {
       if (c == 0) {
 	dump_to_file(cdb);
 	fprintf(stderr, "EOF of tape. Anything should be fine. Exiting.");
-	_exit(0);
+	return 0;
       } else if (c<0) {
 	fprintf(stderr, "Error reading tape. %d\n", tape);
 	_exit(-1);

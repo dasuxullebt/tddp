@@ -26,7 +26,7 @@
 int blockdb_fd;
 
 void init_block_db () {
-  blockdb_fd = open(BLOCK_DB_PATH, O_CREAT | O_LARGEFILE | O_SYNC | O_RDWR,
+  blockdb_fd = open(BLOCK_DB_PATH, O_CREAT | O_LARGEFILE | O_RDWR,
 		    S_IRUSR | S_IWUSR);
   if (blockdb_fd < 0) {
     perror("Error in init_block_db.");
